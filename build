@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+
+import subprocess
+import os
+import commands
+
+working_directory = os.path.abspath('libvips')
+output_directory = os.path.join(working_directory,'output')
+
+env = os.environ.copy()
+
+ret = os.system('cp lib_build.sh %s' % working_directory)
+if ret > 0:
+	exit("Failed to copy lib_build into %s" % working_directory)
+
+p = subprocess.Popen('sh lib_build.sh', shell=True, cwd=working_directory, env=env)
+p.wait()
+
+os.system('rm %s' % (os.path.join(working_directory,"lib_build.sh")))
+
+os.system('rm -fdr libvips-bin')
+
+os.system('mv %s libvips-bin' % output_directory)
+
+output_directory = 'libvips-bin'
+(ret, lipo) = commands.getstatusoutput('xcrun -sdk iphoneos -find lipo')
+
+if ret > 0:
+	exit("Failed to locate lipo binary")
+
+archs = os.listdir(output_directory)
+
+#libvips-cpp.a
+#libvipsCC.a
+#libvips.a
+
+libs = ["libvips.a"]
+for lib in libs:
+	carchs = []
+	for arch in archs:
+		if arch != ".DS_Store":
+			carchs.append(os.path.join(output_directory,arch,"lib",lib))
+	cmd = "%s -create %s -output %s" % (lipo, " ".join(carchs), lib)
+	os.system(cmd)
